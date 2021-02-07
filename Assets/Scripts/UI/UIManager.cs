@@ -42,7 +42,6 @@ public class UIManager : MonoBehaviour
 
     public void ShowMenu()
     {
-        Debug.Log("ShowMenu");
         MainMenu.SetActive(true);
         InGame.SetActive(false);
 

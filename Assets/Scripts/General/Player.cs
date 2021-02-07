@@ -22,17 +22,16 @@ public class Player : MonoBehaviour
     Vector3 pelvisDirection;
 
     float launchForce;
-    int playerMaxHealth;
+    int pelvisAngle;
+
     int playerHealth;
 
-    #endregion Variables
+    #endregion
 
     // Start is called before the first frame update
     void Start()
     {
-        playerMaxHealth = 100;
         playerHealth = 100;
-        launchForce = 1000;
     }
 
     //I needed some time before the shoot sequence begins so I used Invoke
@@ -57,8 +56,10 @@ public class Player : MonoBehaviour
 
     public void WaitAndAttack()
     {
-        CalculatePelvisDirection();
-        SetLaunchForce(Random.Range(50, 75));
+        int pelvisAngle = Random.Range(-15, -45);
+
+        SetPelvisRotation(pelvisAngle);
+        SetLaunchForce(Random.Range(50, 100));
         Invoke("LaunchWeapon", 3f);
     }
 
@@ -67,10 +68,14 @@ public class Player : MonoBehaviour
         AudioManager.Instance.PlayThrowSound();
         GetWeaponGO().GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Dynamic;
 
-        if(CharType == PlayerType.Enemy)
-            GetWeaponGO().GetComponent<Rigidbody2D>().AddForce(-pelvis.transform.right * launchForce );
+        if (CharType == PlayerType.Enemy)
+        {
+            GetWeaponGO().GetComponent<Rigidbody2D>().AddForce(-pelvis.transform.right * launchForce * 150);
+        }
         else
-            GetWeaponGO().GetComponent<Rigidbody2D>().AddForce(pelvis.transform.right * launchForce);
+        {
+            GetWeaponGO().GetComponent<Rigidbody2D>().AddForce(pelvis.transform.right * launchForce * 150);
+        }
 
         GetWeapon().ThrowWeapon();
         CheckState();
@@ -108,17 +113,9 @@ public class Player : MonoBehaviour
     {
         return launchForce;
     }
-    public void SetLaunchForce(int force)
+    public void SetLaunchForce(float force)
     {
-        launchForce = force * 15;
-    }
-
-    public float GetPelvisAngle()
-    {
-        Vector3 pos = Camera.main.WorldToScreenPoint(pelvis.transform.position);
-        Vector3 dir = Input.mousePosition - pos;
-        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-        return angle;
+        launchForce = (int)force;
     }
 
     public GameObject GetPelvis()
@@ -126,32 +123,36 @@ public class Player : MonoBehaviour
         return pelvis;
     }
 
+    public int GetPelvisAngle()
+    {
+        return pelvisAngle;
+    }
+
     public Vector2 GetPelvisDirection()
     {
         return pelvisDirection;
     }
-
-    public void CalculatePelvisDirection()
+    public void SetPelvisRotation(float angle)
     {
-        float angle;
+        pelvisAngle = (int)angle;
+        pelvis.transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+    }
 
-        if (CharType == PlayerType.Enemy)
+    public void CalculatePelvisDirection(Vector3 dir)
+    {
+        if (CharType == PlayerType.Player)
         {
-            angle = Random.Range(-15, -45);
-        }
-        else
-        {
-            Vector3 pos = Camera.main.WorldToScreenPoint(pelvis.transform.position);
-            pelvisDirection = Input.mousePosition - pos;
-            angle = Mathf.Atan2(pelvisDirection.y, pelvisDirection.x) * Mathf.Rad2Deg;
+            pelvisDirection = dir;
 
-            if (angle > 60 || angle < 0)
+            float angle = Mathf.Atan2(pelvisDirection.y, pelvisDirection.x) * Mathf.Rad2Deg;
+
+            if (angle > 60)
                 angle = 60;
             if (angle < 0)
-                angle = 0;       
-        }
+                angle = 0;
 
-        pelvis.transform.rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+            SetPelvisRotation(angle);
+        }
     }
 
     //used to apply damage to player/enemy

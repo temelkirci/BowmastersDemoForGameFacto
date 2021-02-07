@@ -69,6 +69,7 @@
     <Compile Include="Assets\Scripts\Managers\AudioManager.cs" />
     <Compile Include="Assets\Scripts\Managers\CameraManager.cs" />
     <Compile Include="Assets\Scripts\Managers\GameManager.cs" />
+    <Compile Include="Assets\Scripts\Managers\TrajectoryManager.cs" />
     <Compile Include="Assets\Scripts\Patterns\Singleton.cs" />
     <Compile Include="Assets\Scripts\UI\UIManager.cs" />
     <Compile Include="Assets\TooCubeForest\demoScenes\Movement.cs" />

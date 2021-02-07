@@ -41,7 +41,7 @@ public class Weapon : MonoBehaviour
 
     public void ThrowWeapon()
     {
-        Invoke("EnableBoxCollider", 0.25f);
+        Invoke("EnableBoxCollider", 0.5f);
         Invoke("DestroyWeapon", 5f);
     }
 

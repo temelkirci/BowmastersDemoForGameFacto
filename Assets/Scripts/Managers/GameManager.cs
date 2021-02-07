@@ -17,8 +17,6 @@ public class GameManager : MonoBehaviour
 
     #endregion
 
-    //used for checking the aim state
-    private bool showTrajectory;
 
     private GameState currentGameState;
     public event OnStateChangeHandler OnStateChange;
@@ -28,7 +26,6 @@ public class GameManager : MonoBehaviour
 
     public GameObject playerHolder;
     public GameObject enemyHolder;
-    public GameObject trajectoryHolder;
 
     GameObject selectedPlayerGO;
     GameObject selectedEnemyGO;
@@ -36,20 +33,12 @@ public class GameManager : MonoBehaviour
     Player selectedPlayer;
     Player selectedEnemy;
 
-    public GameObject point;
-    GameObject[] points;
-    public int numberOfPoints;
-    public float gapBetweenPoints;
-    bool aiming;
-
-    Vector3 startPoint;
 
     public void Start()
     {
         Screen.orientation = ScreenOrientation.Landscape;
         instance = this;
 
-        aiming = false;
         SetState(GameState.MainMenu);
 
         UIManager.Instance.ShowMenu();
@@ -63,7 +52,7 @@ public class GameManager : MonoBehaviour
         SelectRandomEnemy();
 
         selectedPlayer.CreateWeapon();
-        ShowTrajectory(true);
+        TrajectoryManager.Instance.ShowTrajectory(true);
 
         UIManager.Instance.ShowInGame();
         CameraManager.Instance.SetFollow(selectedPlayerGO);
@@ -112,10 +101,11 @@ public class GameManager : MonoBehaviour
             AudioManager.Instance.PlayHitSound();
 
             SetState(GameState.PlayerAim);
-            CreateTrajectory();
+            TrajectoryManager.Instance.CreateTrajectory();
 
-            ShowTrajectory(true);
+            TrajectoryManager.Instance.ShowTrajectory(true);
             selectedPlayer.CreateWeapon();
+            selectedEnemy.GetWeapon().SetEnemyWeapon(false);
             CameraManager.Instance.SetFollow(selectedPlayerGO);
 
         }
@@ -123,27 +113,13 @@ public class GameManager : MonoBehaviour
         {
             AudioManager.Instance.PlayHitSound();
 
-            ShowTrajectory(false);
+            TrajectoryManager.Instance.ShowTrajectory(false);
             SetState(GameState.EnemyAim);
             selectedEnemy.CreateWeapon();
+            selectedEnemy.GetWeapon().SetEnemyWeapon(true);
             CameraManager.Instance.SetFollow(selectedEnemyGO);
-            RemoveTrajectory();
 
             Invoke("AttackEnemy", 1f);
-        }
-    }
-
-    public void ShowTrajectory(bool show)
-    {
-        showTrajectory = show;
-
-        if (showTrajectory == true)
-        {
-            CreateTrajectory();
-        }
-        else
-        {
-            RemoveTrajectory();
         }
     }
 
@@ -192,39 +168,7 @@ public class GameManager : MonoBehaviour
 
         UIManager.Instance.ShowMenu();
     }
-
-    public void CreateTrajectory()
-    {
-        points = new GameObject[numberOfPoints];
-
-        for (int i = 0; i < numberOfPoints; i++)
-        {
-            points[i] = Instantiate(point, selectedPlayer.GetPelvis().transform.position, Quaternion.identity);
-            points[i].transform.SetParent(trajectoryHolder.transform);
-        }
-    }
-    
-    Vector2 PointPosition(float t)
-    {
-        Vector2 position = (Vector2)selectedPlayer.GetPelvis().transform.position + (selectedPlayer.GetPelvisDirection().normalized * selectedPlayer.GetLaunchForce() * t) + 0.5f * Physics2D.gravity * (t * t);
-        return position;
-    }
-
-    public void SetTrajectory()
-    {
-        for (int i = 0; i < numberOfPoints; i++)
-        {
-            points[i].transform.position = PointPosition(i * gapBetweenPoints);
-        }
-    }
-    
-    public void RemoveTrajectory()
-    {
-        for (int i = 0; i < numberOfPoints; i++)
-        {
-            Destroy(points[i].gameObject);
-        }
-    }
+   
 
     void ShowPlayersStats()
     {
@@ -276,30 +220,6 @@ public class GameManager : MonoBehaviour
 
     }
 
-    //calculate power
-    private void CalculatePowerAndAngle(Vector3 startPos, Vector3 endPos)
-    {
-        int angle = (int)selectedPlayer.GetPelvisAngle();
-        UIManager.Instance.SetPlayerAngle(angle);
-
-        Vector3 mousePos = Camera.main.ScreenToWorldPoint(endPos);
-        mousePos.z = 0;
-        Vector3 start = Camera.main.ScreenToWorldPoint(startPos);
-        start.z = 0;
-
-        int distance = (int)Vector3.Distance(mousePos, start);
-        int power = distance * 10;
-
-        //clamping power to 100 (I found this after testing)
-        if (power > 100)
-        {
-            power = 100;
-        }
-
-        selectedPlayer.SetLaunchForce(power);
-
-        UIManager.Instance.SetPlayerPower(power);
-    }
 
     void AttackEnemy()
     {
@@ -313,30 +233,37 @@ public class GameManager : MonoBehaviour
         {
             UIManager.Instance.SetTurn(selectedPlayer.name);        
 
-            if(aiming)
+            if(TrajectoryManager.Instance.GetAiming() == true)
             {
                 UIManager.Instance.ShowPowerAndAngle(true);
-                selectedPlayer.CalculatePelvisDirection();
-                SetTrajectory(); //  redraw trajectory
-                CalculatePowerAndAngle(startPoint, Input.mousePosition);
-            }
+                TrajectoryManager.Instance.SetTrajectory(); //  redraw trajectory
+                TrajectoryManager.Instance.CalculatePowerAndAngle();
 
-            // I need to be the first touch
-            if (Input.GetMouseButtonDown(0) && !aiming)
-            {
-                //saves the start point of the touch
-                startPoint = Input.mousePosition;
-                //setting the aim true so that calculations could start
-                aiming = true;
-            }
+                selectedPlayer.CalculatePelvisDirection(TrajectoryManager.Instance.GetDirection());
 
-            if (Input.GetMouseButtonUp(0) && aiming)
+                UIManager.Instance.SetPlayerAngle((int)selectedPlayer.GetPelvisAngle());
+                UIManager.Instance.SetPlayerPower(TrajectoryManager.Instance.GetPower());
+
+                if (Input.GetMouseButtonUp(0)) // shoot
+                {
+                    CameraManager.Instance.SetFollow(selectedPlayer.GetWeaponGO());
+                    selectedPlayer.SetLaunchForce(TrajectoryManager.Instance.GetPower());
+                    selectedPlayer.LaunchWeapon();
+                    UIManager.Instance.ShowPowerAndAngle(false);
+                    TrajectoryManager.Instance.SetAiming(false);
+                    TrajectoryManager.Instance.ShowTrajectory(false);
+                }
+            }
+            else
             {
-                CameraManager.Instance.SetFollow(selectedPlayer.GetWeaponGO());
-                selectedPlayer.LaunchWeapon();
-                aiming = false;
-                UIManager.Instance.ShowPowerAndAngle(false);
-                ShowTrajectory(false);
+                // I need to be the first touch
+                if (Input.GetMouseButtonDown(0))
+                {
+                    //saves the start point of the touch
+                    TrajectoryManager.Instance.SetStartPosition(Input.mousePosition);
+                    //setting the aim true so that calculations could start
+                    TrajectoryManager.Instance.SetAiming(true);
+                }
             }
         }      
         
